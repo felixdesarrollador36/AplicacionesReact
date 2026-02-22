@@ -1,0 +1,12 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+.env.local
+.env.*.local
+build/
+dist/
+ios/Pods/
+.ios.bundle
+android/.gradle
+android/local.properties
+android/app/debug.keystore

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Viewer App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        header {
+            background: white;
+            padding: 20px 16px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        header p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .icon-large {
+            font-size: 40px;
+        }
+
+        .document-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .document-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .doc-icon {
+            font-size: 40px;
+            flex-shrink: 0;
+        }
+
+        .doc-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .doc-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .doc-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .doc-type {
+            display: inline-block;
+            background: #e6f0ff;
+            color: #0066cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #f0f4ff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #e6f0ff;
+        }
+
+        .action-btn.delete:hover {
+            background: #ffebee;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,102,204,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .fab:hover {
+            box-shadow: 0 6px 16px rgba(0,102,204,0.4);
+            transform: scale(1.1);
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 60px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        .empty-state button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .empty-state button:hover {
+            background: #0052a3;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .modal-text {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn.primary {
+            background: #0066cc;
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            background: #0052a3;
+        }
+
+        .modal-btn.secondary {
+            background: #f0f4ff;
+            color: #0066cc;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #e6f0ff;
+        }
+
+        .modal-btn.danger {
+            background: #ffebee;
+            color: #ff3333;
+        }
+
+        .modal-btn.danger:hover {
+            background: #ffcdd2;
+        }
+
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #0066cc;
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #1565c0;
+            line-height: 1.6;
+        }
+
+        .instructions strong {
+            color: #0066cc;
+        }
+
+        @media (max-width: 600px) {
+            .document-card {
+                flex-wrap: wrap;
+            }
+
+            .doc-actions {
+                width: 100%;
+                margin-top: 12px;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Documentos</h1>
+                <p id="docCount">0 documentos</p>
+            </div>
+            <div class="icon-large">📚</div>
+        </header>
+
+        <div class="instructions">
+            <strong>📱 Nota:</strong> Esta es una versión web de demostración. Para la versión nativa de React Native, necesitas instalar las dependencias con <code>npm install</code>.
+        </div>
+
+        <div id="documentList"></div>
+        <div id="emptyState" class="empty-state">
+            <div class="empty-icon">📁</div>
+            <h2>No hay documentos</h2>
+            <p>Agrega tus primeros documentos para comenzar</p>
+            <button onclick="addDocument()">Agregar Documento</button>
+        </div>
+    </div>
+
+    <button class="fab" onclick="addDocument()" title="Agregar documento">➕</button>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">📄</div>
+            <div class="modal-title">Agregar Documento</div>
+            <div class="modal-text">
+                <input type="text" id="docNameInput" placeholder="Nombre del documento" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px; font-size: 14px;">
+                <select id="docTypeSelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    <option value="pdf">📄 PDF</option>
+                    <option value="docx">📝 Word</option>
+                    <option value="xlsx">📊 Excel</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeAddModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="createDocument()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">🗑️</div>
+            <div class="modal-title">Confirmar eliminación</div>
+            <div class="modal-text" id="deleteMessage"></div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="modal-btn danger" onclick="confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let documents = JSON.parse(localStorage.getItem('documents')) || [];
+        let pendingDeleteId = null;
+
+        function renderDocuments() {
+            const list = document.getElementById('documentList');
+            const empty = document.getElementById('emptyState');
+            const count = document.getElementById('docCount');
+
+            if (documents.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+                count.textContent = '0 documentos';
+                return;
+            }
+
+            empty.style.display = 'none';
+            count.textContent = documents.length + ' documento' + (documents.length !== 1 ? 's' : '');
+
+            list.innerHTML = documents.map(doc => `
+                <div class="document-card" onclick="openDocument('${doc.id}')">
+                    <div class="doc-icon">${getIcon(doc.type)}</div>
+                    <div class="doc-info">
+                        <div class="doc-name">${escapeHtml(doc.name)}</div>
+                        <div class="doc-meta">${doc.size} • ${doc.date}</div>
+                        <div class="doc-type">${doc.type.toUpperCase()}</div>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); shareDocument('${doc.id}')" title="Compartir">📤</button>
+                        <button class="action-btn delete" onclick="event.stopPropagation(); deleteDocument('${doc.id}')" title="Eliminar">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getIcon(type) {
+            const icons = { pdf: '📄', docx: '📝', xlsx: '📊' };
+            return icons[type] || '📄';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addDocument() {
+            document.getElementById('addModal').classList.add('active');
+            document.getElementById('docNameInput').focus();
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('active');
+            document.getElementById('docNameInput').value = '';
+        }
+
+        function createDocument() {
+            const name = document.getElementById('docNameInput').value.trim();
+            const type = document.getElementById('docTypeSelect').value;
+
+            if (!name) {
+                alert('Por favor ingresa un nombre');
+                return;
+            }
+
+            const doc = {
+                id: Date.now().toString(),
+                name: name,
+                type: type,
+                size: Math.floor(Math.random() * 5000) + 100 + ' KB',
+                date: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' })
+            };
+
+            documents.unshift(doc);
+            localStorage.setItem('documents', JSON.stringify(documents));
+            renderDocuments();
+            closeAddModal();
+        }
+
+        function deleteDocument(id) {
+            pendingDeleteId = id;
+            const doc = documents.find(d => d.id === id);
+            document.getElementById('deleteMessage').textContent = `¿Deseas eliminar "${escapeHtml(doc.name)}"?`;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function confirmDelete() {
+            documents = documents.filter(d => d.id !== pendingDeleteId);
+            localStorage.setItem('documents', JSON.stringify(documents));
+            renderDocuments();
+            closeDeleteModal();
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        function shareDocument(id) {
+            const doc = documents.find(d => d.id === id);
+            alert('Compartir: ' + doc.name + '\n\n(Funcionalidad en desarrollo)');
+        }
+
+        function openDocument(id) {
+            const doc = documents.find(d => d.id === id);
+            alert('Abriendo: ' + doc.name + '\n\nTipo: ' + doc.type.toUpperCase() + '\n\n(Visualización en desarrollo)');
+        }
+
+        // Inicializar
+        renderDocuments();
+
+        // Permitir Enter en input
+        document.getElementById('docNameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') createDocument();
+        });
+    </script>
+</body>
+</html>

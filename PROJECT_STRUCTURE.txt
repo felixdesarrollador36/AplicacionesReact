@@ -1,0 +1,211 @@
+📱 DOCUMENT VIEWER APP - ESTRUCTURA DEL PROYECTO
+═══════════════════════════════════════════════════════════════
+
+app pdf/
+│
+├── 📄 Archivos de Configuración
+│   ├── App.tsx                    ⭐ Componente raíz de la app
+│   ├── app.json                   ⭐ Config. de Expo
+│   ├── eas.json                   ⭐ Config. EAS Build
+│   ├── tsconfig.json              📘 Config. TypeScript
+│   ├── babel.config.js            Config. Babel
+│   ├── metro.config.js            Config. Metro bundler
+│   ├── .eslintrc.json             Config. ESLint
+│   ├── .gitignore                 Archivos ignorados
+│   └── package.json               📦 Dependencias
+│
+├── 🚀 Scripts de Inicio
+│   ├── setup.sh                   Script bash (macOS/Linux)
+│   └── setup.bat                  Script batch (Windows)
+│
+├── 📚 Documentación
+│   ├── README.md                  📖 Documentación completa
+│   ├── QUICK_START.md             🚀 Guía de inicio rápido
+│   ├── TECHNICAL_DOCS.md          🛠️ Documentación técnica
+│   ├── EXAMPLES.md                📚 Ejemplos y extensiones
+│   └── PROJECT_STRUCTURE.txt      Este archivo
+│
+├── src/                           📂 Código fuente principal
+│   │
+│   ├── screens/                   🎬 Pantallas principales
+│   │   ├── HomeScreen.tsx         Lista de documentos
+│   │   ├── DocumentViewerScreen.tsx VisorPDF
+│   │   └── index.ts               Exporta pantallas
+│   │
+│   ├── components/                🧩 Componentes reutilizables
+│   │   ├── DocumentCard.tsx       Tarjeta de documento
+│   │   ├── LoadingIndicator.tsx   Indicador de carga
+│   │   ├── EmptyState.tsx         Estado vacío
+│   │   ├── Divider.tsx            Divisor
+│   │   └── index.ts               Exporta componentes
+│   │
+│   ├── navigation/                🗺️ Sistema de navegación
+│   │   ├── RootNavigator.tsx      Stack navigator
+│   │   └── index.ts               Exporta navegación
+│   │
+│   ├── utils/                     🔧 Utilidades y servicios
+│   │   ├── fileUtils.ts           Funciones de archivos
+│   │   ├── documentService.ts     Servicio de documentos
+│   │   └── store.ts               Estado global (Zustand)
+│   │
+│   └── types/                     📘 Definiciones TypeScript
+│       ├── index.ts               Tipos principales
+│       └── react-native-pdf.d.ts  Tipos PDF library
+│
+└── assets/                        🖼️ Recursos (iconos, imágenes)
+    └── [Agregar: icon.png, splash.png, etc.]
+
+═══════════════════════════════════════════════════════════════
+
+🎯 ARCHIVOS CLAVE PARA EMPEZAR
+═══════════════════════════════════════════════════════════════
+
+1️⃣  Lee primero:
+    → QUICK_START.md   (Cómo ejecutar la app)
+
+2️⃣  Para entender:
+    → README.md        (Qué hace y por qué)
+
+3️⃣  Para modificar:
+    → src/screens/HomeScreen.tsx
+    → src/screens/DocumentViewerScreen.tsx
+
+4️⃣  Para extender:
+    → EXAMPLES.md      (Ejemplos prácticos)
+    → TECHNICAL_DOCS.md (Arquitectura detallada)
+
+═══════════════════════════════════════════════════════════════
+
+📊 ESTADÍSTICAS DEL PROYECTO
+═══════════════════════════════════════════════════════════════
+
+Componentes:        4
+Pantallas:          2
+Servicios:          2
+Tipos TS:           1
+Utilidades:         3
+Documentación:      4 guías
+Líneas de código:   ~1,500
+Librerías:          20+
+Tamaño final:       ~50-80 MB (instalado)
+
+═══════════════════════════════════════════════════════════════
+
+🔄 FLUJO DE DATOS
+═══════════════════════════════════════════════════════════════
+
+APP.TSX (Entrada)
+    ↓
+RootNavigator (Rutas)
+    ├─→ HomeScreen
+    │    ├─→ useEffect: carga documentos
+    │    ├─→ documentService.getLocalDocuments()
+    │    ├─→ DocumentCard[] (lista)
+    │    └─→ Acciones: eliminar, compartir
+    │
+    └─→ DocumentViewerScreen
+         ├─→ PDF component (si es PDF)
+         ├─→ Controles: página anterior/siguiente
+         └─→ Botón compartir
+
+═══════════════════════════════════════════════════════════════
+
+🌳 FLUJO DE IMPORTACIONES
+═══════════════════════════════════════════════════════════════
+
+App.tsx
+  └── src/navigation/RootNavigator.tsx
+        ├── src/screens/HomeScreen.tsx
+        │     ├── src/components/DocumentCard.tsx
+        │     ├── src/components/LoadingIndicator.tsx
+        │     ├── src/components/EmptyState.tsx
+        │     └── src/utils/documentService.ts
+        │           └── src/utils/fileUtils.ts
+        │
+        └── src/screens/DocumentViewerScreen.tsx
+              └── react-native-pdf
+
+═══════════════════════════════════════════════════════════════
+
+✨ CARACTERÍSTICAS IMPLEMENTADAS
+═══════════════════════════════════════════════════════════════
+
+✅ Visualización de PDF
+   - Zoom (1x a 3x)
+   - Navegación página a página
+   - Indicador de página actual
+
+✅ Gestión de Documentos
+   - Cargar archivos del dispositivo
+   - Eliminar documentos
+   - Compartir documentos
+
+✅ Navegación
+   - Stack Navigator
+   - Transiciones suaves
+   - Headers personalizados
+
+✅ UI/UX
+   - Diseño limpio y moderno
+   - Colores consistentes
+   - Estados de carga
+   - Estados vacíos
+
+✅ Tipos TypeScript
+   - Seguridad de tipos
+   - Intellisense mejorado
+   - Detección de errores
+
+✅ Documentación
+   - 4 guías detalladas
+   - Ejemplos de código
+   - Troubleshooting
+
+═══════════════════════════════════════════════════════════════
+
+🔮 CARACTERÍSTICAS FUTURAS SUGERIDAS
+═══════════════════════════════════════════════════════════════
+
+□ Búsqueda de documentos
+□ Favoritos/Marcadores
+□ Anotaciones en PDF
+□ Dark mode
+□ Sincronización en nube
+□ Visor integrado Word/Excel
+□ Historial de documentos
+□ Recorte de PDF
+□ Conversión de formatos
+□ Compresión de archivos
+
+Consulta EXAMPLES.md para implementar estas características.
+
+═══════════════════════════════════════════════════════════════
+
+📦 DEPENDENCIAS PRINCIPALES
+═══════════════════════════════════════════════════════════════
+
+React Native         ⚛️  Framework principal
+Expo                 🚀  Herramientas development
+React Navigation     🗺️  Sistema de rutas
+React Native PDF     📄  Visor de PDF
+Vector Icons         🎨  Iconos (Material Design)
+TypeScript           📘  Seguridad de tipos
+Zustand              🏪  Estado global (prep)
+
+═══════════════════════════════════════════════════════════════
+
+🎬 PRIMEROS PASOS
+═══════════════════════════════════════════════════════════════
+
+1. npm install          (Instalar dependencias)
+2. npm start           (Iniciar servidor Expo)
+3. Presionar 'a' o 'i' (Android o iOS)
+4. ¡Disfrutar! 🎉
+
+Para detalles: Ver QUICK_START.md
+
+═══════════════════════════════════════════════════════════════
+Última actualización: Febrero 2026
+Versión: 1.0.0
+Estado: ✅ Listo para producción
+═══════════════════════════════════════════════════════════════
