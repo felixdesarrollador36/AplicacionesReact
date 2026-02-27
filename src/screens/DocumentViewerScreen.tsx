@@ -1,54 +1,75 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
-  Alert,
-  Text,
   ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { WebView } from 'react-native-webview';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Document } from '../types';
+import Pdf from 'react-native-pdf';
+
+type Document = {
+  name: string;
+  type: string;
+};
 
 type RootStackParamList = {
-  Home: undefined;
   DocumentViewer: {
     document: Document;
     documentUri: string;
   };
 };
 
-type Props = NativeStackScreenProps<
-  RootStackParamList,
-  'DocumentViewer'
->;
+type Props = NativeStackScreenProps<RootStackParamList, 'DocumentViewer'>;
 
-export const DocumentViewerScreen = ({
-  route,
-  navigation,
-}: Props) => {
+export const DocumentViewerScreen = ({ route, navigation }: Props) => {
   const { document, documentUri } = route.params;
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const safeUri =
+    documentUri?.startsWith('file://') ? documentUri : `file://${documentUri}`;
 
   useEffect(() => {
     navigation.setOptions({
+      headerShown: true,
+      headerStyle: { backgroundColor: '#8B2635' },
+      headerTintColor: '#fff',
+      headerTitleStyle: { fontWeight: '700' },
       title: document.name,
     });
   }, [navigation, document.name]);
 
-  const handleShare = () => {
-    Alert.alert('Compartir', `Compartiendo: ${document.name}`);
-  };
-
   if (document.type !== 'pdf') {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.message}>
-          Este tipo de documento no es soportado.
-        </Text>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Icon name="file-alert-outline" size={60} color="#8B2635" />
+          <Text style={styles.message}>Solo se soporta PDF.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.center}>
+          <Icon name="alert-circle-outline" size={60} color="#8B2635" />
+          <Text style={styles.message}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+            }}
+          >
+            <Text style={styles.retryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -56,22 +77,20 @@ export const DocumentViewerScreen = ({
   return (
     <SafeAreaView style={styles.container}>
       {loading && (
-        <ActivityIndicator
-          size="large"
-          color="#0066cc"
-          style={styles.loader}
-        />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#8B2635" />
+          <Text style={styles.loadingText}>Cargando PDF...</Text>
+        </View>
       )}
-
-      <WebView
-        source={{ uri: documentUri }}
-        style={{ flex: 1 }}
-        onLoadEnd={() => setLoading(false)}
+      <Pdf
+        source={{ uri: safeUri }}
+        onLoadComplete={() => setLoading(false)}
+        onError={(e) => {
+          setLoading(false);
+          setError(`Error al abrir PDF: ${String(e)}`);
+        }}
+        style={styles.pdf}
       />
-
-      <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-        <Icon name="share-variant" size={24} color="#ffffff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -79,29 +98,47 @@ export const DocumentViewerScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fafafa',
   },
-  loader: {
-    position: 'absolute',
-    top: '50%',
-    alignSelf: 'center',
-    zIndex: 1,
+  pdf: {
+    flex: 1,
   },
-  shareButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    backgroundColor: '#0066cc',
-    padding: 16,
-    borderRadius: 30,
+  loaderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#8B2635',
+    fontWeight: '600',
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   message: {
+    color: '#1a1a1a',
     fontSize: 16,
-    color: '#666',
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  retryButton: {
+    marginTop: 24,
+    backgroundColor: '#8B2635',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

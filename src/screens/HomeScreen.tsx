@@ -2,26 +2,24 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
-  FlatList,
-  Alert,
   SafeAreaView,
-  Text,
+  FlatList,
   TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Document } from '../types/index';
-import {
-  DocumentCard,
-  LoadingIndicator,
-  EmptyState,
-} from '../components/index';
-import {
-  getLocalDocuments,
-  pickDocument,
-  deleteDocument,
-  shareDocument,
-} from '../utils/documentService';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+type Document = {
+  id: string;
+  name: string;
+  type: string;
+  uri: string;
+};
 
 type RootStackParamList = {
   Home: undefined;
@@ -31,160 +29,129 @@ type RootStackParamList = {
   };
 };
 
-type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+export const HomeScreen = ({ navigation }: Props) => {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const loadDocuments = async () => {
+  const handlePickDocument = async () => {
     try {
       setLoading(true);
-      const docs = await getLocalDocuments();
-      setDocuments(docs);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const docDir = FileSystem.documentDirectory;
+        const filename = asset.name;
+        const destPath = `${docDir}${filename}`;
+
+        await FileSystem.copyAsync({
+          from: asset.uri,
+          to: destPath,
+        });
+
+        const newDoc: Document = {
+          id: Date.now().toString(),
+          name: filename,
+          type: 'pdf',
+          uri: destPath,
+        };
+
+        setDocuments([newDoc, ...documents]);
+        Alert.alert('Éxito', `${filename} agregado correctamente`);
+      }
     } catch (error) {
-      console.error('Error loading documents:', error);
-      Alert.alert('Error', 'No se pudieron cargar los documentos');
+      Alert.alert('Error', 'No se pudo seleccionar el documento');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadDocuments();
-    setRefreshing(false);
-  };
-
-  const handleAddDocument = async () => {
-    const newDocument = await pickDocument();
-    if (newDocument) {
-      Alert.alert('Éxito', `${newDocument.name} se agregó correctamente`);
-      await loadDocuments();
-    } else {
-      Alert.alert(
-        'Información',
-        'No se seleccionó ningún documento o el tipo no es soportado',
-      );
-    }
-  };
-
-  const handleDeleteDocument = (document: Document) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Deseas eliminar "${document.name}"?`,
-      [
-        {
-          text: 'Cancelar',
-          onPress: () => {},
-          style: 'cancel',
-        },
-        {
-          text: 'Eliminar',
-          onPress: async () => {
-            const success = await deleteDocument(document.path);
-            if (success) {
-              Alert.alert('Éxito', 'Documento eliminado');
-              await loadDocuments();
-            } else {
-              Alert.alert('Error', 'No se pudo eliminar el documento');
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-    );
-  };
-
-  const handleShareDocument = async (document: Document) => {
-    try {
-      await shareDocument(document.path);
-      Alert.alert('Información', 'Función de compartir en desarrollo');
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo compartir el documento');
-    }
-  };
-
-  const handleOpenDocument = (document: Document) => {
+  const handleOpenDocument = (doc: Document) => {
     navigation.navigate('DocumentViewer', {
-      document,
-      documentUri: document.path,
+      document: doc,
+      documentUri: doc.uri,
     });
   };
 
-  // Load documents on screen focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadDocuments();
-    }, []),
-  );
+  const handleDeleteDocument = async (doc: Document) => {
+    try {
+      await FileSystem.deleteAsync(doc.uri);
+      setDocuments(documents.filter((d) => d.id !== doc.id));
+      Alert.alert('Éxito', 'Documento eliminado');
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo eliminar el documento');
+    }
+  };
 
-  // Initial load
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View>
-        <Text style={styles.headerTitle}>Documentos</Text>
-        <Text style={styles.headerSubtitle}>
-          {documents.length} documento{documents.length !== 1 ? 's' : ''}
-        </Text>
+  const renderDocument = ({ item }: { item: Document }) => (
+    <TouchableOpacity
+      style={styles.documentCard}
+      onPress={() => handleOpenDocument(item)}
+    >
+      <View style={styles.cardContent}>
+        <Icon name="file-pdf-box" size={40} color="#8B2635" />
+        <View style={styles.docInfo}>
+          <Text style={styles.docName} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={styles.docType}>PDF</Text>
+        </View>
       </View>
-      <Text style={styles.headerIcon}>📄</Text>
-    </View>
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={() => handleDeleteDocument(item)}
+      >
+        <Icon name="trash-can-outline" size={20} color="#8B2635" />
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LoadingIndicator />
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {documents.length === 0 ? (
-          <EmptyState
-            icon="folder-open"
-            title="No hay documentos"
-            description="Agrega tus primeros documentos para comenzar"
-            actionText="Agregar Documento"
-            onAction={handleAddDocument}
-          />
-        ) : (
-          <FlatList
-            data={documents}
-            renderItem={({ item }) => (
-              <DocumentCard
-                document={item}
-                onPress={handleOpenDocument}
-                onDelete={handleDeleteDocument}
-                onShare={handleShareDocument}
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderHeader}
-            scrollEnabled={true}
-            onRefresh={handleRefresh}
-            refreshing={refreshing}
-            contentContainerStyle={styles.listContent}
-          />
-        )}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Mis Documentos</Text>
+        <Text style={styles.subtitle}>Visualiza y gestiona tus PDFs</Text>
       </View>
 
-      {documents.length > 0 && (
-        <TouchableOpacity 
-          style={styles.fab}
-          onPress={handleAddDocument}
-        >
-          <Text style={styles.fabText}>➕</Text>
-        </TouchableOpacity>
+      {/* Documents List */}
+      {documents.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Icon name="file-document-outline" size={80} color="#8B2635" />
+          <Text style={styles.emptyTitle}>No hay documentos</Text>
+          <Text style={styles.emptySubtitle}>
+            Añade tu primer PDF para comenzar
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={documents}
+          renderItem={renderDocument}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          scrollEnabled={true}
+        />
       )}
+
+      {/* Add Button */}
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={handlePickDocument}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#ffffff" size="large" />
+        ) : (
+          <>
+            <Icon name="plus" size={28} color="#ffffff" />
+            <Text style={styles.addButtonText}>Añadir PDF</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -192,48 +159,101 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fafafa',
   },
-  content: {
-    flex: 1,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#8B2635',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    elevation: 3,
   },
-  listContent: {
-    paddingBottom: 100,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    backgroundColor: '#ffffff',
-    marginBottom: 8,
-  },
-  headerTitle: {
+  title: {
     fontSize: 28,
     fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#f0f0f0',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  documentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#8B2635',
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  docInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  docName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666666',
+  docType: {
+    fontSize: 12,
+    color: '#8B2635',
+    fontWeight: '500',
   },
-  headerIcon: {   // 👈 AGREGA ESTO
-    fontSize: 32,
+  deleteBtn: {
+    padding: 8,
+    marginLeft: 8,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#0066cc',
+  emptyState: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  fabText: {
-    fontSize: 32,
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    backgroundColor: '#8B2635',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    elevation: 5,
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
