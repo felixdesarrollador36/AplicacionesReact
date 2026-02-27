@@ -8,4 +8,6 @@ build
 *.pem
 .cache
 .vscode/settings.json
-out/
+out/release/
+*.exe
+*.asar
