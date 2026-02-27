@@ -1,0 +1,22 @@
+{
+  "name": "pruebas",
+  "version": "1.0.0",
+  "description": "Este proyecto permite administrar estudiantes y generar comprobantes de pago automáticos para la academia Mente Tester.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.1.5",
+    "pdfkit": "^0.17.2",
+    "twilio": "^5.12.0",
+    "web-vitals": "^5.1.0"
+  }
+}
