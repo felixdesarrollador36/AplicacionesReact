@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Root wrapper scripts for cloud deploy",
   "scripts": {
+    "postinstall": "npm ci --prefix backend",
     "start": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev"
   }
