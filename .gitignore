@@ -30,3 +30,7 @@ Thumbs.db
 # APK/AAB artifacts
 *.apk
 *.aab
+
+# Android signing keys
+*.keystore
+*.jks
