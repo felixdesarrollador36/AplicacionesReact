@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: pulsebudget-api
+    env: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: HOST
+        value: 0.0.0.0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: capacitor://localhost,ionic://localhost
+      - key: MONGODB_URI
+        sync: false
