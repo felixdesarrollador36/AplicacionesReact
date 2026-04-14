@@ -2,6 +2,11 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "com.pulsebudget.app"
+    packagingOptions {
+        resources {
+            excludes += ['build-data.properties']
+        }
+    }
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.pulsebudget.app"

@@ -1,7 +1,8 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">PulseBudget</string>
-    <string name="title_activity_main">PulseBudget</string>
+    <string name="app_name">CashControl</string>
+    <string name="title_activity_main">CashControl</string>
     <string name="package_name">com.pulsebudget.app</string>
     <string name="custom_url_scheme">com.pulsebudget.app</string>
 </resources>
+

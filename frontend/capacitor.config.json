@@ -1,5 +1,12 @@
-{
+﻿{
   "appId": "com.pulsebudget.app",
-  "appName": "PulseBudget",
-  "webDir": "dist"
+  "appName": "CashControl",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorSQLite": {
+      "androidIsEncryption": false,
+      "iosIsEncryption": false
+    }
+  }
 }
+

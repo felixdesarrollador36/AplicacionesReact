@@ -10,9 +10,21 @@ Aplicacion React + Tailwind CSS v4 para control de finanzas personales.
 
 ## Configuracion
 
-1. Crea archivo .env a partir de .env.example
-2. Define VITE_API_URL apuntando al backend, por ejemplo:
-	- VITE_API_URL=http://localhost:4000/api
+1. La aplicacion ya funciona en modo local sin backend.
+2. En Android usa SQLite nativo dentro de la app.
+3. En navegador usa persistencia local para desarrollo.
+4. Las variables VITE_API_URL y VITE_ANDROID_API_URL ya no son necesarias para el modo local.
+
+## Uso en movil totalmente local
+
+1. Crea tu cuenta directamente en la app instalada.
+2. Todos los usuarios, movimientos, presupuestos, metas, notificaciones y recordatorios quedan guardados en el dispositivo.
+3. Para generar un APK nuevo ejecuta:
+	- npm run build:android
+4. Si necesitas abrir Android Studio ejecuta:
+	- npm run android:open
+
+Con este flujo, la app instalada ya no depende de Render, MongoDB Atlas ni de tu red local.
 
 ## Modulos UI incluidos
 

@@ -63,6 +63,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const payload = reminderSchema.parse(req.body);
 
+
     const reminder = await PaymentReminder.create({
       userId: new mongoose.Types.ObjectId(req.user.id),
       title: payload.title,
@@ -71,11 +72,19 @@ router.post(
       frequency: payload.frequency,
     });
 
-    await createNotification({
+    // Evitar notificaciones duplicadas para el mismo recordatorio
+    const existing = await Notification.findOne({
       userId: req.user.id,
       type: 'payment_setup',
       message: `Recordatorio creado: ${payload.title}`,
     });
+    if (!existing) {
+      await createNotification({
+        userId: req.user.id,
+        type: 'payment_setup',
+        message: `Recordatorio creado: ${payload.title}`,
+      });
+    }
 
     return res.status(201).json({
       reminder: {

@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from 'react';
+﻿import { createElement, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import {
@@ -30,12 +30,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { AUTH_STORAGE_KEY, api, setAuthToken } from './lib/api';
+import OcrCapture from './OcrCapture';
 
-const CHART_COLORS = ['#2A9D8F', '#E76F51', '#E9C46A', '#264653', '#F4A261', '#457B9D'];
+const CHART_COLORS = ['#0EA5E9', '#16A34A', '#EAB308', '#14532D', '#22C55E', '#0369A1'];
 const PAGE_SIZE = 12;
 const MODULE_ITEMS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -44,7 +48,8 @@ const MODULE_ITEMS = [
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'metas', label: 'Metas' },
   { id: 'notificaciones', label: 'Notificaciones' },
-];
+  { id: 'ocr', label: 'Captura OCR' },
+ ];
 const MODULE_IDS = new Set(MODULE_ITEMS.map((item) => item.id));
 
 const getModuleFromHash = () => {
@@ -53,9 +58,9 @@ const getModuleFromHash = () => {
   return MODULE_IDS.has(hash) ? hash : 'dashboard';
 };
 
-const currencyFormatter = new Intl.NumberFormat('es-ES', {
+const currencyFormatter = new Intl.NumberFormat('es-DO', {
   style: 'currency',
-  currency: 'USD',
+  currency: 'DOP',
 });
 
 const monthFormatter = new Intl.DateTimeFormat('es-ES', {
@@ -84,6 +89,19 @@ const parseStoredAuth = () => {
 };
 
 const formatCurrency = (value) => currencyFormatter.format(Number(value || 0));
+
+const arrayBufferToBase64 = (arrayBuffer) => {
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+};
 
 const formatMonthLabel = (value) => {
   if (!value || !value.includes('-')) return value;
@@ -148,12 +166,12 @@ const AuthScreen = ({
   onThemeToggle,
 }) => (
   <div className="relative min-h-screen overflow-hidden bg-slate-100 px-4 py-10 dark:bg-slate-950">
-    <div className="pointer-events-none absolute -left-16 -top-20 h-72 w-72 rounded-full bg-teal-500/35 blur-3xl" />
-    <div className="pointer-events-none absolute -right-12 top-1/4 h-72 w-72 rounded-full bg-orange-300/35 blur-3xl dark:bg-cyan-500/20" />
+    <div className="pointer-events-none absolute -left-16 -top-20 h-72 w-72 rounded-full bg-emerald-500/35 blur-3xl" />
+    <div className="pointer-events-none absolute -right-12 top-1/4 h-72 w-72 rounded-full bg-amber-300/35 blur-3xl dark:bg-sky-500/20" />
 
     <div className="mx-auto flex max-w-5xl items-center justify-between px-2 pb-8">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700 dark:text-teal-300">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
           Finanzas personales
         </p>
         <h1 className="font-display mt-2 text-4xl font-black text-slate-900 dark:text-white">
@@ -182,7 +200,7 @@ const AuthScreen = ({
         </p>
         <ul className="space-y-5">
           <li className="flex items-start gap-3">
-            <Wallet className="mt-1 h-5 w-5 text-teal-600 dark:text-teal-300" />
+            <Wallet className="mt-1 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">Dashboard en tiempo real</p>
               <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -191,7 +209,7 @@ const AuthScreen = ({
             </div>
           </li>
           <li className="flex items-start gap-3">
-            <PiggyBank className="mt-1 h-5 w-5 text-teal-600 dark:text-teal-300" />
+            <PiggyBank className="mt-1 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">Presupuestos y metas</p>
               <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -200,7 +218,7 @@ const AuthScreen = ({
             </div>
           </li>
           <li className="flex items-start gap-3">
-            <ShieldCheck className="mt-1 h-5 w-5 text-teal-600 dark:text-teal-300" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">Autenticacion segura</p>
               <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -249,7 +267,7 @@ const AuthScreen = ({
                 value={authForm.name}
                 onChange={onFormChange}
                 required
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-teal-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-emerald-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </label>
           ) : null}
@@ -262,7 +280,7 @@ const AuthScreen = ({
               value={authForm.email}
               onChange={onFormChange}
               required
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-teal-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-emerald-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </label>
 
@@ -275,14 +293,14 @@ const AuthScreen = ({
               onChange={onFormChange}
               required
               minLength={6}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-teal-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none ring-emerald-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
           </label>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-emerald-500 dark:text-slate-900 dark:hover:bg-emerald-400"
           >
             {isSubmitting ? 'Procesando...' : authMode === 'login' ? 'Entrar' : 'Crear cuenta'}
           </button>
@@ -293,6 +311,7 @@ const AuthScreen = ({
 );
 
 function App() {
+  const [ocrResult, setOcrResult] = useState(null);
   const [auth, setAuth] = useState(parseStoredAuth);
   const [theme, setTheme] = useState(() => {
     const saved = window.localStorage.getItem('finanzas_theme');
@@ -734,6 +753,31 @@ function App() {
     return response.data.items || [];
   };
 
+  const saveAndShareNativeFile = async (fileName, mimeType, arrayBuffer) => {
+    const base64Data = arrayBufferToBase64(arrayBuffer);
+
+    await Filesystem.writeFile({
+      path: fileName,
+      data: base64Data,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+
+    const fileUri = await Filesystem.getUri({
+      path: fileName,
+      directory: Directory.Cache,
+    });
+
+    await Share.share({
+      title: fileName,
+      text: 'Archivo exportado desde CashControl',
+      url: fileUri.uri,
+      dialogTitle: 'Compartir archivo',
+      files: [fileUri.uri],
+      mimeType,
+    });
+  };
+
   const onExportExcel = async () => {
     setActionLoading('excel');
     setError('');
@@ -752,7 +796,19 @@ function App() {
       const sheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, sheet, 'Historial');
-      XLSX.writeFile(workbook, `historial-finanzas-${todayInput()}.xlsx`);
+
+      const fileName = `historial-finanzas-${todayInput()}.xlsx`;
+
+      if (Capacitor.isNativePlatform()) {
+        const excelData = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        await saveAndShareNativeFile(
+          fileName,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          excelData,
+        );
+      } else {
+        XLSX.writeFile(workbook, fileName);
+      }
 
       setToast('Exportacion Excel generada.');
     } catch (requestError) {
@@ -793,7 +849,15 @@ function App() {
         },
       });
 
-      pdf.save(`historial-finanzas-${todayInput()}.pdf`);
+      const fileName = `historial-finanzas-${todayInput()}.pdf`;
+
+      if (Capacitor.isNativePlatform()) {
+        const pdfData = pdf.output('arraybuffer');
+        await saveAndShareNativeFile(fileName, 'application/pdf', pdfData);
+      } else {
+        pdf.save(fileName);
+      }
+
       setToast('Exportacion PDF generada.');
     } catch (requestError) {
       setError(messageFromError(requestError, 'No se pudo exportar el PDF.'));
@@ -819,16 +883,16 @@ function App() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-100 pb-12 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="pointer-events-none absolute -left-16 top-10 h-72 w-72 rounded-full bg-cyan-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-72 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl dark:bg-teal-500/20" />
+      <div className="pointer-events-none absolute -left-16 top-10 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-72 h-80 w-80 rounded-full bg-amber-300/25 blur-3xl dark:bg-emerald-500/20" />
 
       <header className="sticky top-0 z-20 border-b border-white/55 bg-slate-100/75 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/75">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
               Panel financiero
             </p>
-            <h1 className="font-display text-2xl font-black text-slate-900 dark:text-white">PulseBudget</h1>
+            <h1 className="font-display text-2xl font-black text-slate-900 dark:text-white">CashControl</h1>
           </div>
 
           <nav className="hidden gap-2 xl:flex">
@@ -840,8 +904,8 @@ function App() {
                 className={clsx(
                   'rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors',
                   item.id === activeModule
-                    ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-400 dark:bg-teal-500/15 dark:text-teal-200'
-                    : 'border-slate-200 bg-white/80 text-slate-700 hover:border-teal-400 hover:text-teal-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:text-teal-300',
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/15 dark:text-emerald-200'
+                    : 'border-slate-200 bg-white/80 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:text-emerald-300',
                 )}
               >
                 {item.label}
@@ -866,7 +930,7 @@ function App() {
             <div className="relative rounded-xl border border-slate-200 bg-white/85 px-3 py-1.5 text-sm dark:border-white/10 dark:bg-slate-900">
               <Bell className="h-4 w-4" />
               {unreadNotifications > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white">
+                <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
                   {unreadNotifications}
                 </span>
               ) : null}
@@ -875,7 +939,7 @@ function App() {
             <button
               type="button"
               onClick={onLogout}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-emerald-500 dark:text-slate-900 dark:hover:bg-emerald-400"
             >
               <LogOut className="h-4 w-4" />
               Salir
@@ -885,6 +949,87 @@ function App() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-6 px-4 pt-6 lg:px-8">
+        {/* <OcrCapture onResult={setOcrResult} /> */}
+        {/* Bloque antiguo de resultado OCR individual eliminado */}
+        {activeModule === 'ocr' && (
+          <>
+            <OcrCapture onResult={setOcrResult} />
+            {Array.isArray(ocrResult) && ocrResult.length > 0 && (
+              <div className="my-4 p-4 border rounded bg-green-50 text-green-900">
+                <b>Resultados detectados:</b>
+                {ocrResult.map((res, idx) => (
+                  <div key={idx} className="mb-2 p-2 border-b last:border-b-0">
+                    <div><b>Texto:</b> {res.text}</div>
+                    <div><b>Monto:</b> {res.monto}</div>
+                    <div><b>Tipo:</b> {res.tipo}</div>
+                    <div className="flex gap-2 mt-2">
+                      {res.tipo === 'ingreso' && (
+                        <button
+                          className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                          disabled={actionLoading === `ocr-income-${idx}`}
+                          onClick={async () => {
+                            setActionLoading(`ocr-income-${idx}`);
+                            setError('');
+                            try {
+                              await api.post('/transactions/income', {
+                                amount: res.monto,
+                                source: 'OCR',
+                                date: todayInput(),
+                                note: res.text,
+                              });
+                              setToast('Ingreso guardado.');
+                              setOcrResult((prev) => prev.filter((_, i) => i !== idx));
+                              setReloadKey((prev) => prev + 1);
+                            } catch (err) {
+                              setError('No se pudo guardar el ingreso.');
+                            } finally {
+                              setActionLoading('');
+                            }
+                          }}
+                        >
+                          Guardar como ingreso
+                        </button>
+                      )}
+                      {res.tipo === 'gasto' && (
+                        <button
+                          className="px-3 py-1 bg-rose-600 text-white rounded hover:bg-rose-700"
+                          disabled={actionLoading === `ocr-expense-${idx}`}
+                          onClick={async () => {
+                            setActionLoading(`ocr-expense-${idx}`);
+                            setError('');
+                            try {
+                              await api.post('/transactions/expense', {
+                                amount: res.monto,
+                                category: 'OCR',
+                                date: todayInput(),
+                                description: res.text,
+                              });
+                              setToast('Gasto guardado.');
+                              setOcrResult((prev) => prev.filter((_, i) => i !== idx));
+                              setReloadKey((prev) => prev + 1);
+                            } catch (err) {
+                              setError('No se pudo guardar el gasto.');
+                            } finally {
+                              setActionLoading('');
+                            }
+                          }}
+                        >
+                          Guardar como gasto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  className="mt-2 px-3 py-1 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+                  onClick={() => setOcrResult(null)}
+                >
+                  Cancelar todo
+                </button>
+              </div>
+            )}
+          </>
+        )}
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 xl:hidden">
           {MODULE_ITEMS.map((item) => (
             <a
@@ -894,8 +1039,8 @@ function App() {
               className={clsx(
                 'whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors',
                 item.id === activeModule
-                  ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-400 dark:bg-teal-500/15 dark:text-teal-200'
-                  : 'border-slate-200 bg-white/80 text-slate-700 hover:border-teal-400 hover:text-teal-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:text-teal-300',
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-500/15 dark:text-emerald-200'
+                  : 'border-slate-200 bg-white/80 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:text-emerald-300',
               )}
             >
               {item.label}
@@ -910,7 +1055,7 @@ function App() {
         ) : null}
 
         {toast ? (
-          <div className="rounded-2xl border border-teal-300 bg-teal-50 px-4 py-3 text-sm text-teal-700 dark:border-teal-900 dark:bg-teal-950/45 dark:text-teal-200">
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/45 dark:text-emerald-200">
             {toast}
           </div>
         ) : null}
@@ -926,7 +1071,7 @@ function App() {
               title="Balance actual"
               value={formatCurrency(summary.balance)}
               icon={Wallet}
-              tone="border-teal-200/80 bg-teal-50/75 text-teal-700 dark:border-teal-900/70 dark:bg-teal-950/30 dark:text-teal-200"
+              tone="border-emerald-200/80 bg-emerald-50/75 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200"
             />
             <StatCard
               title="Ingresos del mes"
@@ -1133,7 +1278,7 @@ function App() {
               type="button"
               onClick={onExportExcel}
               disabled={actionLoading === 'excel'}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-500 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-65 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-65 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
             >
               <Download className="h-4 w-4" />
               {actionLoading === 'excel' ? 'Exportando...' : 'Exportar Excel'}
@@ -1143,7 +1288,7 @@ function App() {
               type="button"
               onClick={onExportPdf}
               disabled={actionLoading === 'pdf'}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-500 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-65 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-65 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
             >
               <Download className="h-4 w-4" />
               {actionLoading === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
@@ -1160,7 +1305,7 @@ function App() {
                   setFilters((prev) => ({ ...prev, from: event.target.value }));
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
               />
             </label>
             <label className="text-sm">
@@ -1172,7 +1317,7 @@ function App() {
                   setFilters((prev) => ({ ...prev, to: event.target.value }));
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
               />
             </label>
             <label className="text-sm">
@@ -1183,7 +1328,7 @@ function App() {
                   setFilters((prev) => ({ ...prev, type: event.target.value }));
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
               >
                 <option value="all">Todos</option>
                 <option value="income">Ingresos</option>
@@ -1198,7 +1343,7 @@ function App() {
                   setFilters((prev) => ({ ...prev, category: event.target.value }));
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
               >
                 <option value="all">Todas</option>
                 {categories.map((category) => (
@@ -1305,7 +1450,7 @@ function App() {
                   required
                   value={budgetForm.category}
                   onChange={(event) => setBudgetForm((prev) => ({ ...prev, category: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1317,7 +1462,7 @@ function App() {
                   required
                   value={budgetForm.limitAmount}
                   onChange={(event) => setBudgetForm((prev) => ({ ...prev, limitAmount: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -1330,7 +1475,7 @@ function App() {
                     required
                     value={budgetForm.month}
                     onChange={(event) => setBudgetForm((prev) => ({ ...prev, month: event.target.value }))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                   />
                 </label>
                 <label className="text-sm">
@@ -1342,7 +1487,7 @@ function App() {
                     required
                     value={budgetForm.year}
                     onChange={(event) => setBudgetForm((prev) => ({ ...prev, year: event.target.value }))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                   />
                 </label>
               </div>
@@ -1350,7 +1495,7 @@ function App() {
               <button
                 type="submit"
                 disabled={actionLoading === 'budget'}
-                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-emerald-500 dark:text-slate-900 dark:hover:bg-emerald-400"
               >
                 {actionLoading === 'budget' ? 'Guardando...' : 'Guardar presupuesto'}
               </button>
@@ -1411,7 +1556,7 @@ function App() {
                       <div
                         className={clsx(
                           'h-full rounded-full transition-all',
-                          budget.exceeded ? 'bg-rose-500' : 'bg-teal-500',
+                          budget.exceeded ? 'bg-rose-500' : 'bg-emerald-500',
                         )}
                         style={{ width: `${Math.min(budget.progress, 100)}%` }}
                       />
@@ -1424,7 +1569,7 @@ function App() {
                           Limite superado
                         </span>
                       ) : (
-                        <span className="text-teal-700 dark:text-teal-300">Dentro del limite</span>
+                        <span className="text-emerald-700 dark:text-emerald-300">Dentro del limite</span>
                       )}
                     </div>
                   </div>
@@ -1446,7 +1591,7 @@ function App() {
                   required
                   value={goalForm.title}
                   onChange={(event) => setGoalForm((prev) => ({ ...prev, title: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1458,7 +1603,7 @@ function App() {
                   required
                   value={goalForm.targetAmount}
                   onChange={(event) => setGoalForm((prev) => ({ ...prev, targetAmount: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1469,7 +1614,7 @@ function App() {
                   step="0.01"
                   value={goalForm.currentAmount}
                   onChange={(event) => setGoalForm((prev) => ({ ...prev, currentAmount: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1478,14 +1623,14 @@ function App() {
                   type="date"
                   value={goalForm.deadline}
                   onChange={(event) => setGoalForm((prev) => ({ ...prev, deadline: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={actionLoading === 'goal'}
-                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-emerald-500 dark:text-slate-900 dark:hover:bg-emerald-400"
               >
                 {actionLoading === 'goal' ? 'Guardando...' : 'Crear meta'}
               </button>
@@ -1518,13 +1663,13 @@ function App() {
 
                     <div className="mb-1 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700">
                       <div
-                        className="h-full rounded-full bg-cyan-500 transition-all"
+                        className="h-full rounded-full bg-sky-500 transition-all"
                         style={{ width: `${Math.min(goal.progress, 100)}%` }}
                       />
                     </div>
                     <p className="mb-3 text-xs text-slate-500 dark:text-slate-300">
                       {Math.round(goal.progress)}% completado
-                      {goal.deadline ? ` • Meta al ${goal.deadline}` : ''}
+                      {goal.deadline ? ` â€¢ Meta al ${goal.deadline}` : ''}
                     </p>
 
                     <div className="flex gap-2">
@@ -1537,13 +1682,13 @@ function App() {
                         onChange={(event) =>
                           setContributions((prev) => ({ ...prev, [goal.id]: event.target.value }))
                         }
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                       />
                       <button
                         type="button"
                         onClick={() => onContributeGoal(goal.id)}
                         disabled={actionLoading === `contribute-goal-${goal.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-65"
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-65"
                       >
                         <Goal className="h-4 w-4" />
                         Aportar
@@ -1569,7 +1714,7 @@ function App() {
                   required
                   value={reminderForm.title}
                   onChange={(event) => setReminderForm((prev) => ({ ...prev, title: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1580,7 +1725,7 @@ function App() {
                   step="0.01"
                   value={reminderForm.amount}
                   onChange={(event) => setReminderForm((prev) => ({ ...prev, amount: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1590,7 +1735,7 @@ function App() {
                   required
                   value={reminderForm.dueDate}
                   onChange={(event) => setReminderForm((prev) => ({ ...prev, dueDate: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 />
               </label>
               <label className="block text-sm">
@@ -1598,7 +1743,7 @@ function App() {
                 <select
                   value={reminderForm.frequency}
                   onChange={(event) => setReminderForm((prev) => ({ ...prev, frequency: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-teal-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none ring-emerald-500 focus:ring-2 dark:border-white/10 dark:bg-slate-900"
                 >
                   <option value="once">Una sola vez</option>
                   <option value="monthly">Mensual</option>
@@ -1608,7 +1753,7 @@ function App() {
               <button
                 type="submit"
                 disabled={actionLoading === 'reminder'}
-                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+                className="w-full rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-65 dark:bg-emerald-500 dark:text-slate-900 dark:hover:bg-emerald-400"
               >
                 {actionLoading === 'reminder' ? 'Guardando...' : 'Crear recordatorio'}
               </button>
@@ -1625,9 +1770,9 @@ function App() {
                       <div key={reminder.id} className="rounded-xl border border-slate-200 p-3 dark:border-white/10">
                         <p className="font-medium">{reminder.title}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-300">
-                          {reminder.frequency === 'monthly' ? 'Mensual' : 'Unico'} • {reminder.due_date}
+                          {reminder.frequency === 'monthly' ? 'Mensual' : 'Unico'} â€¢ {reminder.due_date}
                         </p>
-                        <p className="text-xs font-semibold text-teal-700 dark:text-teal-300">
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                           {reminder.amount ? formatCurrency(reminder.amount) : 'Sin monto definido'}
                         </p>
                       </div>
@@ -1659,7 +1804,7 @@ function App() {
                               type="button"
                               onClick={() => onMarkNotificationAsRead(notification.id)}
                               disabled={actionLoading === `notification-${notification.id}`}
-                              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:border-teal-500 hover:text-teal-700 dark:border-white/10 dark:text-slate-200"
+                              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-white/10 dark:text-slate-200"
                             >
                               Marcar leida
                             </button>
@@ -1694,3 +1839,4 @@ function App() {
 }
 
 export default App;
+
