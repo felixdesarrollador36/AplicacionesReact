@@ -159,6 +159,10 @@ ipcMain.handle('load-settings', async () => {
   return recordingManager.loadSettings();
 });
 
+ipcMain.handle('get-default-recording-path', async () => {
+  return recordingManager.getDefaultRecordingPath();
+});
+
 ipcMain.handle('get-system-info', async () => {
   return {
     platform: process.platform,
@@ -174,4 +178,12 @@ ipcMain.handle('save-video-chunk', async (_event, chunk: Uint8Array) => {
 // Handler for manual MP4 conversion
 ipcMain.handle('convert-to-mp4', async (_event, webmPath: string) => {
   return recordingManager.convertToMp4Manual(webmPath);
+});
+
+ipcMain.handle('convert-to-mp3', async (_event, inputPath: string) => {
+  return recordingManager.convertToMp3Manual(inputPath);
+});
+
+ipcMain.handle('transcribe-recording', async (_event, inputPath: string) => {
+  return recordingManager.transcribeRecordingManual(inputPath);
 });

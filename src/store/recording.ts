@@ -38,11 +38,19 @@ interface SettingsStore {
 
 const defaultSettings: AppSettings = {
   defaultOutputPath: '',
+  enableCameraOverlay: false,
   audioSource: 'both',
   videoQuality: 'high',
   audioQuality: 'high',
   autoSavePreferences: true,
   theme: 'dark',
+  transcriptionProvider: 'openai',
+  transcriptionApiBaseUrl: 'https://api.openai.com/v1',
+  transcriptionApiKey: '',
+  transcriptionModel: 'whisper-1',
+  transcriptionLanguage: '',
+  autoTranscribe: false,
+  generateSubtitles: true,
 };
 
 export const useSettingsStore = create<SettingsStore>((set) => ({

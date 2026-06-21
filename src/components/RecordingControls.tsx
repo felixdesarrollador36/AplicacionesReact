@@ -8,6 +8,8 @@ interface RecordingControlsProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  cameraEnabled?: boolean;
+  onToggleCamera?: (enabled: boolean) => void;
   isLoading?: boolean;
 }
 
@@ -16,6 +18,8 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
   onPause,
   onResume,
   onStop,
+  cameraEnabled = false,
+  onToggleCamera,
   isLoading = false,
 }: RecordingControlsProps) => {
   const { isRecording, isPaused, duration } = useRecordingStore();
@@ -79,6 +83,20 @@ export const RecordingControls: React.FC<RecordingControlsProps> = ({
             </button>
           </>
         )}
+      </div>
+
+      <div className="flex items-center gap-3 text-sm">
+        <input
+          id="camera-overlay"
+          type="checkbox"
+          checked={cameraEnabled}
+          onChange={(event) => onToggleCamera?.(event.target.checked)}
+          disabled={isRecording || isLoading}
+          className="w-4 h-4"
+        />
+        <label htmlFor="camera-overlay" className="text-gray-700 dark:text-gray-300">
+          Activar camara integrada (modo YouTube)
+        </label>
       </div>
     </div>
   );

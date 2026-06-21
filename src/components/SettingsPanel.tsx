@@ -12,7 +12,27 @@ interface SettingsPanelProps {
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }: SettingsPanelProps) => {
   const { settings, setSetting, saveSettings } = useSettingsStore();
   const [isSaving, setIsSaving] = useState(false);
-  const [outputPath, setOutputPath] = useState(settings.outputPath || '');
+  const [defaultRecordingPath, setDefaultRecordingPath] = useState('');
+  const effectiveOutputPath = settings.outputPath || settings.defaultOutputPath || defaultRecordingPath;
+  const [outputPath, setOutputPath] = useState(effectiveOutputPath);
+
+  React.useEffect(() => {
+    if (!window.electronAPI) {
+      return;
+    }
+
+    window.electronAPI
+      .getDefaultRecordingPath()
+      .then(setDefaultRecordingPath)
+      .catch((error) => {
+        console.error('Error loading default recording path:', error);
+      });
+  }, []);
+
+  // Sincronizar outputPath local si cambia en el store
+  React.useEffect(() => {
+    setOutputPath(effectiveOutputPath);
+  }, [effectiveOutputPath]);
 
   const handleSelectOutputPath = async () => {
     try {
@@ -20,6 +40,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
       if (path) {
         setOutputPath(path);
         setSetting('outputPath', path);
+        // Guardar automáticamente si está activo
+        if (settings.autoSavePreferences) {
+          await saveSettings();
+        }
       }
     } catch (error) {
       console.error('Error selecting output path:', error);
@@ -28,11 +52,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
 
   const handleOpenOutputFolder = async () => {
     try {
-      const appDataPath = process.platform === 'win32' 
-        ? process.env.APPDATA 
-        : process.env.HOME;
-      const defaultPath = `${appDataPath}\\sistemagrabacion\\recordings`;
-      const pathToOpen = outputPath || defaultPath;
+      const pathToOpen = effectiveOutputPath || outputPath;
+      if (!pathToOpen) {
+        return;
+      }
       await window.electronAPI.openFile(pathToOpen);
     } catch (error) {
       console.error('Error opening folder:', error);
@@ -61,6 +84,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
+            aria-label="Close settings"
           >
             <X className="w-6 h-6" />
           </button>
@@ -69,12 +93,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
         <div className="p-6 space-y-6">
           {/* Output Path */}
           <div>
-            <label className="block text-sm font-medium mb-2">Save Recordings To</label>
+            <label htmlFor="output-path" className="block text-sm font-medium mb-2">Save Recordings To</label>
             <div className="space-y-2">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/60">
+                <div className="font-medium text-gray-900 dark:text-gray-100">Current recording folder</div>
+                <div className="mt-1 break-all font-mono text-xs text-gray-600 dark:text-gray-300">
+                  {effectiveOutputPath || 'Loading recording path...'}
+                </div>
+                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {settings.outputPath || settings.defaultOutputPath ? 'Using a configured save folder.' : 'Using the application default save folder.'}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <input
+                  id="output-path"
                   type="text"
-                  value={outputPath || 'Default Location (AppData\\sistemagrabacion\\recordings)'}
+                  value={outputPath}
                   readOnly
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 text-sm"
                   placeholder="Default location"
@@ -102,8 +136,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
 
           {/* Audio Source */}
           <div>
-            <label className="block text-sm font-medium mb-2">Audio Source</label>
+            <label htmlFor="audio-source" className="block text-sm font-medium mb-2">Audio Source</label>
             <select
+              id="audio-source"
               value={settings.audioSource}
               onChange={(e) => setSetting('audioSource', e.target.value as AudioSource)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
@@ -114,10 +149,24 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
             </select>
           </div>
 
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="enableCameraOverlay"
+              checked={settings.enableCameraOverlay}
+              onChange={(e) => setSetting('enableCameraOverlay', e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="enableCameraOverlay" className="text-sm font-medium">
+              Activar camara integrada (Picture-in-Picture) al iniciar grabacion
+            </label>
+          </div>
+
           {/* Video Quality */}
           <div>
-            <label className="block text-sm font-medium mb-2">Video Quality</label>
+            <label htmlFor="video-quality" className="block text-sm font-medium mb-2">Video Quality</label>
             <select
+              id="video-quality"
               value={settings.videoQuality}
               onChange={(e) => setSetting('videoQuality', e.target.value as VideoQuality)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
@@ -130,8 +179,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
 
           {/* Audio Quality */}
           <div>
-            <label className="block text-sm font-medium mb-2">Audio Quality</label>
+            <label htmlFor="audio-quality" className="block text-sm font-medium mb-2">Audio Quality</label>
             <select
+              id="audio-quality"
               value={settings.audioQuality}
               onChange={(e) => setSetting('audioQuality', e.target.value as AudioQuality)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"
@@ -142,12 +192,101 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
             </select>
           </div>
 
+          <div className="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+            <div>
+              <h3 className="text-sm font-semibold">OpenAI Transcription</h3>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Use OpenAI Whisper to generate a transcript and optional SRT subtitles from your recordings.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="transcription-base-url" className="block text-sm font-medium mb-2">OpenAI Base URL</label>
+              <input
+                id="transcription-base-url"
+                type="text"
+                value={settings.transcriptionApiBaseUrl}
+                onChange={(e) => setSetting('transcriptionApiBaseUrl', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 text-sm"
+                placeholder="https://api.openai.com/v1"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="transcription-api-key" className="block text-sm font-medium mb-2">OpenAI API Key</label>
+              <input
+                id="transcription-api-key"
+                type="password"
+                value={settings.transcriptionApiKey}
+                onChange={(e) => setSetting('transcriptionApiKey', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 text-sm"
+                placeholder="sk-..."
+              />
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Example: Base URL <span className="font-mono">https://api.openai.com/v1</span> and model <span className="font-mono">whisper-1</span>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="transcription-model" className="block text-sm font-medium mb-2">Model</label>
+                <input
+                  id="transcription-model"
+                  type="text"
+                  value={settings.transcriptionModel}
+                  onChange={(e) => setSetting('transcriptionModel', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 text-sm"
+                  placeholder="whisper-1"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="transcription-language" className="block text-sm font-medium mb-2">Language</label>
+                <input
+                  id="transcription-language"
+                  type="text"
+                  value={settings.transcriptionLanguage}
+                  onChange={(e) => setSetting('transcriptionLanguage', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 text-sm"
+                  placeholder="es"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="autoTranscribe"
+                checked={settings.autoTranscribe}
+                onChange={(e) => setSetting('autoTranscribe', e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="autoTranscribe" className="text-sm font-medium">
+                Transcribe automatically after each recording
+              </label>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="generateSubtitles"
+                checked={settings.generateSubtitles}
+                onChange={(e) => setSetting('generateSubtitles', e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="generateSubtitles" className="text-sm font-medium">
+                Generate SRT subtitles together with the transcript
+              </label>
+            </div>
+          </div>
+
           {/* Theme */}
           <div>
-            <label className="block text-sm font-medium mb-2">Theme</label>
+            <label htmlFor="theme" className="block text-sm font-medium mb-2">Theme</label>
             <select
+              id="theme"
               value={settings.theme}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const newTheme = e.target.value as 'light' | 'dark';
                 setSetting('theme', newTheme);
                 // Aplicar inmediatamente
@@ -155,6 +294,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }:
                   document.documentElement.classList.add('dark');
                 } else {
                   document.documentElement.classList.remove('dark');
+                }
+                // Guardar automáticamente si está activo
+                if (settings.autoSavePreferences) {
+                  await saveSettings();
                 }
               }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700"

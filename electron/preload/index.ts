@@ -15,9 +15,12 @@ const electronAPI: ElectronAPI = {
   deleteSession: (id) => ipcRenderer.invoke('delete-session', id),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   loadSettings: () => ipcRenderer.invoke('load-settings'),
+  getDefaultRecordingPath: () => ipcRenderer.invoke('get-default-recording-path'),
   getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   saveVideoChunk: (chunk) => ipcRenderer.invoke('save-video-chunk', chunk),
   convertToMp4: (webmPath) => ipcRenderer.invoke('convert-to-mp4', webmPath),
+  convertToMp3: (inputPath) => ipcRenderer.invoke('convert-to-mp3', inputPath),
+  transcribeRecording: (inputPath) => ipcRenderer.invoke('transcribe-recording', inputPath),
   onRecordingTick: (callback) => {
     const listener = (_event: any, duration: number) => callback(duration);
     ipcRenderer.on('recording-tick', listener);
@@ -47,6 +50,21 @@ const electronAPI: ElectronAPI = {
     const listener = (_event: any, data: any) => callback(data);
     ipcRenderer.on('conversion-error', listener);
     return () => ipcRenderer.removeListener('conversion-error', listener);
+  },
+  onTranscriptionProgress: (callback) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('transcription-progress', listener);
+    return () => ipcRenderer.removeListener('transcription-progress', listener);
+  },
+  onTranscriptionComplete: (callback) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('transcription-complete', listener);
+    return () => ipcRenderer.removeListener('transcription-complete', listener);
+  },
+  onTranscriptionError: (callback) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('transcription-error', listener);
+    return () => ipcRenderer.removeListener('transcription-error', listener);
   },
 };
 

@@ -12,6 +12,7 @@ vi.mock('../store/recording', () => ({
 global.window.electronAPI = {
   selectOutputPath: vi.fn(),
   openFile: vi.fn(),
+  getDefaultRecordingPath: vi.fn().mockResolvedValue('C:\\Users\\Felix Lora\\AppData\\Roaming\\sistemagrabacion\\recordings'),
 } as any;
 
 describe('SettingsPanel Component', () => {
@@ -31,6 +32,13 @@ describe('SettingsPanel Component', () => {
         autoSavePreferences: true,
         outputPath: '',
         defaultOutputPath: 'C:\\recordings',
+        transcriptionProvider: 'openai',
+        transcriptionApiBaseUrl: 'https://api.openai.com/v1',
+        transcriptionApiKey: '',
+        transcriptionModel: 'whisper-1',
+        transcriptionLanguage: 'es',
+        autoTranscribe: false,
+        generateSubtitles: true,
       },
       setSetting: mockSetSetting,
       saveSettings: mockSaveSettings,
@@ -42,6 +50,13 @@ describe('SettingsPanel Component', () => {
     render(<SettingsPanel isOpen={true} onClose={mockOnClose} />);
     
     expect(screen.getByText('Settings')).toBeDefined();
+  });
+
+  it('should show the current recording folder', async () => {
+    render(<SettingsPanel isOpen={true} onClose={mockOnClose} />);
+
+    expect(await screen.findByText('Current recording folder')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('C:\\recordings')).toBeInTheDocument();
   });
 
   it('should not render when isOpen is false', () => {
@@ -113,6 +128,24 @@ describe('SettingsPanel Component', () => {
     fireEvent.change(themeSelect, { target: { value: 'light' } });
     
     expect(mockSetSetting).toHaveBeenCalledWith('theme', 'light');
+  });
+
+  it('should update transcription base URL', () => {
+    render(<SettingsPanel isOpen={true} onClose={mockOnClose} />);
+
+    const apiBaseUrlInput = screen.getByLabelText(/openai base url/i);
+    fireEvent.change(apiBaseUrlInput, { target: { value: 'https://example.com/v1' } });
+
+    expect(mockSetSetting).toHaveBeenCalledWith('transcriptionApiBaseUrl', 'https://example.com/v1');
+  });
+
+  it('should toggle automatic transcription', () => {
+    render(<SettingsPanel isOpen={true} onClose={mockOnClose} />);
+
+    const checkbox = screen.getByLabelText(/transcribe automatically after each recording/i);
+    fireEvent.click(checkbox);
+
+    expect(mockSetSetting).toHaveBeenCalledWith('autoTranscribe', true);
   });
 
   it('should toggle auto-save checkbox', () => {

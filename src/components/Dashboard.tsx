@@ -14,11 +14,17 @@ export const Dashboard: React.FC = () => {
   const [audioSetupOpen, setAudioSetupOpen] = React.useState(false);
   const [isConverting, setIsConverting] = React.useState(false);
   const [conversionProgress, setConversionProgress] = React.useState(0);
+  const [defaultRecordingPath, setDefaultRecordingPath] = React.useState('');
   const { setRecording, setPaused, setDuration, setError } = useRecordingStore();
-  const { settings } = useSettingsStore();
+  const { settings, loadSettings, setSetting } = useSettingsStore();
+  const effectiveOutputPath = settings.outputPath || settings.defaultOutputPath || defaultRecordingPath;
   const screenRecorder = useScreenRecorder();
 
   // Aplicar tema al documento
+  React.useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
+
   React.useEffect(() => {
     const root = document.documentElement;
     if (settings.theme === 'dark') {
@@ -27,6 +33,32 @@ export const Dashboard: React.FC = () => {
       root.classList.remove('dark');
     }
   }, [settings.theme]);
+
+  React.useEffect(() => {
+    if (!window.electronAPI) {
+      return;
+    }
+
+    window.electronAPI
+      .getDefaultRecordingPath()
+      .then(setDefaultRecordingPath)
+      .catch((error) => {
+        console.error('Failed to load default recording path:', error);
+      });
+  }, []);
+
+  const handleOpenOutputFolder = async () => {
+    if (!effectiveOutputPath) {
+      return;
+    }
+
+    try {
+      await window.electronAPI.openFile(effectiveOutputPath);
+    } catch (error) {
+      console.error('Failed to open recordings folder:', error);
+      setError('Could not open the recordings folder');
+    }
+  };
 
   React.useEffect(() => {
     // Verificar que electronAPI está disponible
@@ -63,12 +95,12 @@ export const Dashboard: React.FC = () => {
       setConversionProgress(0);
       const openFolder = window.confirm(
         `Conversion to MP4 complete!\n\n` +
-        `File saved: ${data.mp4Path}\n\n` +
+        `File saved: ${data.outputPath}\n\n` +
         `Would you like to open the recordings folder?`
       );
       
       if (openFolder) {
-        const folderPath = data.mp4Path.substring(0, data.mp4Path.lastIndexOf('\\'));
+        const folderPath = data.outputPath.substring(0, data.outputPath.lastIndexOf('\\'));
         await window.electronAPI.openFile(folderPath);
       }
     });
@@ -117,7 +149,9 @@ export const Dashboard: React.FC = () => {
       });
 
       // Start screen capture in renderer
-      await screenRecorder.startRecording(screenSource.id);
+      await screenRecorder.startRecording(screenSource.id, {
+        cameraEnabled: settings.enableCameraOverlay,
+      });
       
       setRecording(true);
     } catch (error) {
@@ -181,23 +215,38 @@ export const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Screen Recorder</h1>
-          <div className="flex gap-3">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-2">
+          <div className="flex flex-col gap-2 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700 shadow dark:bg-gray-900 dark:text-gray-300 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <div className="font-semibold">Ruta actual de guardado</div>
+              <div className="truncate text-xs md:text-sm">{effectiveOutputPath || 'Cargando ruta de grabaciones...'}</div>
+            </div>
             <button
-              onClick={() => setAudioSetupOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Audio Setup"
+              onClick={handleOpenOutputFolder}
+              disabled={!effectiveOutputPath}
+              className="inline-flex items-center justify-center rounded-lg bg-blue-500 px-3 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              <Mic className="w-5 h-5" />
+              Abrir carpeta
             </button>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Settings"
-            >
-              <SettingsIcon className="w-5 h-5" />
-            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Screen Recorder</h1>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAudioSetupOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Audio Setup"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Settings"
+              >
+                <SettingsIcon className="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -217,6 +266,8 @@ export const Dashboard: React.FC = () => {
                 onPause={handlePause}
                 onResume={handleResume}
                 onStop={handleStop}
+                cameraEnabled={settings.enableCameraOverlay}
+                onToggleCamera={(enabled) => setSetting('enableCameraOverlay', enabled)}
               />
             </div>
           </TabsContent>

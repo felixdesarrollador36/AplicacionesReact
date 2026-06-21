@@ -3,6 +3,7 @@ export type AudioSource = 'system' | 'microphone' | 'both';
 export type VideoQuality = 'low' | 'medium' | 'high';
 export type AudioQuality = 'low' | 'medium' | 'high';
 export type FileFormat = 'mp4' | 'webm';
+export type TranscriptionProvider = 'openai';
 
 export interface RecordingSettings {
   outputPath: string;
@@ -49,9 +50,17 @@ export interface DisplaySource {
 export interface AppSettings {
   defaultOutputPath: string;
   outputPath?: string;
+  enableCameraOverlay: boolean;
   audioSource: AudioSource;
   videoQuality: VideoQuality;
   audioQuality: AudioQuality;
   autoSavePreferences: boolean;
   theme: 'light' | 'dark';
+  transcriptionProvider: TranscriptionProvider;
+  transcriptionApiBaseUrl: string;
+  transcriptionApiKey: string;
+  transcriptionModel: string;
+  transcriptionLanguage: string;
+  autoTranscribe: boolean;
+  generateSubtitles: boolean;
 }
